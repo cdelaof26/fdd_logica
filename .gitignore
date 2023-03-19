@@ -1,0 +1,7 @@
+.idea
+*.exe
+*.txt
+*.pyc
+*.DS_Store*
+.Spotlight-V100
+.Trashes
