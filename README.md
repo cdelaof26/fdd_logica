@@ -42,6 +42,11 @@ $ python main.py
 
 ### Changelog
 
+### v0.0.2
+
+- Mejora en la experiencia de uso
+
+
 ### v0.0.1
 
 - Proyecto inicial

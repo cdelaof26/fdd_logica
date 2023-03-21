@@ -1,5 +1,31 @@
+from subprocess import call
 
 # Utilidades varias
+
+
+NOMBRE_DEL_SISTEMA = ""
+
+
+def obtener_nombre_del_sistema():
+    global NOMBRE_DEL_SISTEMA
+
+    try:
+        from os import uname
+        NOMBRE_DEL_SISTEMA = uname()[0]
+    except ImportError:
+        NOMBRE_DEL_SISTEMA = "nt"
+
+
+def limpiar_pantalla():
+    global NOMBRE_DEL_SISTEMA
+
+    if not NOMBRE_DEL_SISTEMA:
+        obtener_nombre_del_sistema()
+
+    if NOMBRE_DEL_SISTEMA == "nt":
+        call("cls", shell=True)
+    else:
+        call("clear", shell=True)
 
 
 def seleccionar_opcion(opciones: list, valores=None):

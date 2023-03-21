@@ -73,9 +73,18 @@ def estructurar_tabla(cantidad_de_variables: int, combinaciones: list, valores_d
 
 
 def crear_tabla_de_verdad() -> list:
+    utilidades.limpiar_pantalla()
+
     print("Ingresa la cantidad de variables")
-    cantidad_de_variables = int(input("> "))
-    if cantidad_de_variables <= 0:
+    cantidad_de_variables = input("> ")
+
+    if re.sub(r"\d", "", cantidad_de_variables):  # La cadena no es vacía
+        print("   Los datos ingresados no son válidos")
+        return list()
+
+    cantidad_de_variables = int(cantidad_de_variables)
+    if cantidad_de_variables == 0:
+        print("   No es posible crear una tabla con 0 variables")
         return list()
 
     cantidad_de_combinaciones = 2 ** cantidad_de_variables
@@ -95,30 +104,24 @@ def crear_tabla_de_verdad() -> list:
 
 
 def transcribir_a_python(variables: list, expresion: str):
-    # multiplicaciones = re.findall(r"\w{2,}", expresion) + re.findall(r"\w\^\w", expresion)
     while multiplicaciones := re.findall(r"\w{2,}", expresion) + re.findall(r"\w\^\w", expresion):
         for multiplicacion in multiplicaciones:
             nueva_expresion = ""
             agregar_negacion = "^" in multiplicacion
 
             for variable in variables:
-                print("is", variable, "in", multiplicacion, "?", variable in multiplicacion)
                 if variable in multiplicacion:
                     nueva_expresion += variable + "*"
 
                 if agregar_negacion and nueva_expresion and nueva_expresion[-1] == "*" and "^" not in nueva_expresion:
                     nueva_expresion += "^"
 
-            print("bf", nueva_expresion)
             expresion = expresion.replace(multiplicacion, nueva_expresion[:-1])
-            print("af", expresion)
 
     multiplicaciones = re.findall(r"\)\^", expresion) + re.findall(r"\)\w", expresion)
     for multiplicacion in multiplicaciones:
         nueva_expresion = ")*" + multiplicacion.replace(")", "")
-        print("bf", nueva_expresion)
         expresion = expresion.replace(multiplicacion, nueva_expresion)
-        print("af", expresion)
 
     multiplicaciones = re.findall(r"\w\^\(", expresion) + re.findall(r"\w\(", expresion)
     for multiplicacion in multiplicaciones:
@@ -144,39 +147,67 @@ def transcribir_a_python(variables: list, expresion: str):
     return expresion
 
 
+def es_expresion_valida(variables: list, expresion: str) -> bool:
+    if expresion.count("([{") != expresion.count(")]}"):
+        print("  Paréntesis desbalanceado")
+        return False
+
+    # No pueden existir dos operadores juntos
+    if re.findall(f"\*{2,}|\+{2,}", expresion):
+        print("  Operadores juntos")
+        return False
+
+    expresion = re.sub(r"[(\[{]", "", expresion)
+    expresion = re.sub(r"[]})]", "", expresion)
+    expresion = re.sub(r"[\^+*]", "", expresion)
+    expresion = expresion.replace(" ", "")
+
+    for variable in variables:
+        expresion = expresion.replace(variable, "")
+
+    if expresion:
+        print("  Variables en expresión no definidas")
+        return False
+
+    return True
+
+
 def deducir_tabla_de_verdad() -> list:
+    utilidades.limpiar_pantalla()
+
     print("Ingresa las variables")
     variables = utilidades.obtener_lista()
+
+    if not variables:
+        return list()
 
     print("Ingresa la expresión")
     expresion = input("> ").upper()
 
-    # variables = ["a", "b", "c"]
-    # expresion = "((a*b)+(^b*^c))+(b^c)"
+    if not es_expresion_valida(variables, expresion):
+        print("La expresión ingresada no es válida")
+        return list()
+
+    expresion = re.sub(r"[\[{]", "(", expresion)
+    expresion = re.sub(r"[]}]", ")", expresion)
 
     cantidad_de_variables = len(variables)
     combinaciones = combinar(cantidad_de_variables)
-    print("comb", combinaciones)
 
     valores_de_salida = list()
 
     expresion = transcribir_a_python(variables, expresion)
-    print("trans", expresion)
     variables_str = "".join(variables)
 
     for combinacion in combinaciones:
         expresion_eval = expresion
         for variable, valor in zip(variables_str, combinacion):
-            print("repl", variable, "wit", valor, "in", expresion_eval)
             expresion_eval = re.sub(variable + " ", valor + " ", expresion_eval)
             expresion_eval = re.sub(variable + r"\)", valor + ")", expresion_eval)
             expresion_eval = re.sub(variable + "$", valor, expresion_eval)
 
         expresion_eval = f"valores_de_salida.append({expresion_eval})"
-        print("eval", expresion_eval)
         exec(expresion_eval)
-        print("l:", valores_de_salida)
-        print("res:", valores_de_salida[-1])
         if valores_de_salida[-1]:
             valores_de_salida[-1] = 1
         else:
