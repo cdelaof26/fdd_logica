@@ -42,6 +42,13 @@ $ python main.py
 
 ### Changelog
 
+### v0.0.3
+
+- Mejora en la experiencia de uso
+- Agregado `Crear circuito`
+- Agregado `Clasificar expresión`
+
+
 ### v0.0.2
 
 - Mejora en la experiencia de uso
