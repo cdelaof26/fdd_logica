@@ -56,16 +56,7 @@ def capturar_valores_de_salida(combinaciones: list) -> list:
     valores_de_salida = list()
 
     for combinacion in combinaciones:
-        salida_valida = False
-        valor_de_salida = ""
-        while not salida_valida:
-            print(f"Ingresa el valor de salida para '{combinacion}'")
-            valor_de_salida = input("> ")
-            salida_valida = valor_de_salida == "0" or valor_de_salida == "1"
-            if not salida_valida:
-                print("Valor invalido")
-
-        valores_de_salida.append(valor_de_salida)
+        valores_de_salida.append(utilidades.obtener_estado_logico(f"Ingresa el valor de salida para '{combinacion}'"))
 
     return valores_de_salida
 
@@ -82,7 +73,7 @@ def estructurar_tabla(cantidad_de_variables: int, combinaciones: list, valores_d
                 if variables is not None:
                     tabla[x].append(variables[x])
                 else:
-                    tabla[x].append(f"V{x}")
+                    tabla[x].append(f"{chr(ord('A') + x)}")
             tabla[x].append(valor)
 
         y += 1
@@ -125,13 +116,17 @@ def crear_tabla_de_verdad(variables=None) -> list:
     return estructurar_tabla(cantidad_de_variables, combinaciones, valores_de_salida, variables)
 
 
-def transcribir_a_python(variables: list, expresion: str):
+def transcribir_a_python(expresion: str):
     while multiplicaciones := re.findall(r"\w{2,}", expresion) + re.findall(r"\w\^\w", expresion):
         for multiplicacion in multiplicaciones:
             nueva_expresion = ""
             agregar_negacion = "^" in multiplicacion
 
-            for variable in variables:
+            # Dado que en una misma multiplicación puede existir:
+            # x^x, se tiene que procesar dos veces x
+            variables_en_multiplicacion = re.findall(r"\w", multiplicacion)
+
+            for variable in variables_en_multiplicacion:
                 if variable in multiplicacion:
                     nueva_expresion += variable + "*"
 
@@ -171,7 +166,7 @@ def es_expresion_valida(variables: list, expresion: str) -> bool:
         return False
 
     # No pueden existir dos operadores juntos
-    if re.findall(f"\*{2,}|\+{2,}", expresion):
+    if re.sub(r"[*]{2,}|[+]{2,}", "", expresion) != expresion:
         print("  Operadores juntos")
         return False
 
@@ -193,7 +188,7 @@ def es_expresion_valida(variables: list, expresion: str) -> bool:
 def obtener_funcion_booleana(variables=None) -> tuple:
     if variables is None:
         print("Ingresa las variables")
-        variables = utilidades.obtener_lista()
+        variables = utilidades.obtener_lista(permitir_elementos_compuestos=False)
 
     if not variables:
         return [], ""
@@ -202,6 +197,7 @@ def obtener_funcion_booleana(variables=None) -> tuple:
 
     print("Ingresa la expresión")
     expresion = input("> ").upper()
+    expresion = re.sub(r" +", "", expresion)
 
     if not es_expresion_valida(variables, expresion):
         print("La expresión ingresada no es válida")
@@ -224,7 +220,7 @@ def deducir_tabla_de_verdad(variables=None, expresion=None) -> list:
 
     valores_de_salida = list()
 
-    expresion = transcribir_a_python(variables, expresion)
+    expresion = transcribir_a_python(expresion)
     variables_str = "".join(variables)
 
     for combinacion in combinaciones:
@@ -235,7 +231,12 @@ def deducir_tabla_de_verdad(variables=None, expresion=None) -> list:
             expresion_eval = re.sub(variable + "$", valor, expresion_eval)
 
         expresion_eval = f"valores_de_salida.append({expresion_eval})"
-        exec(expresion_eval)
+        try:
+            exec(expresion_eval)
+        except SyntaxError:
+            print("  Error al evaluar")
+            raise KeyboardInterrupt()
+
         if valores_de_salida[-1]:
             valores_de_salida[-1] = 1
         else:
@@ -277,14 +278,119 @@ def clasificar_expresion(variables: list, expresion: str) -> FuncionLogica:
     regex_sop_c = "[%a]{%a}" % ("".join(variables), len(variables))
     regex_sop_c = regex_sop_c + r"\+|" + regex_sop_c
     cantidad_de_coincidencias = len(re.findall(regex_sop_c, expresion_sin_negacion))
+    
     if re.sub(regex_sop_c, "", expresion_sin_negacion) == "":
         if utilidades.cadena_contiene_lista_n_veces(expresion_sin_negacion, variables, cantidad_de_coincidencias):
             return FuncionLogica.SOP_C
 
         return FuncionLogica.SOP
 
-    temp = re.sub(r"\(\w{2,}\)\+|\(\w{2,}\)", "", expresion_sin_negacion)
-    if re.sub(r"\w{2,}\+|\w{2,}", "", temp) == "":
+    # Se considerará que funciones como a+bc son SOP
+    # temp = re.sub(r"\(\w{2,}\)\+|\(\w{2,}\)", "", expresion_sin_negacion)
+    # if re.sub(r"\w{2,}\+|\w{2,}", "", temp) == "":
+    #   Puede que se cambie a futuro
+    #
+    temp = re.sub(r"\(\w+\)\+|\(\w+\)", "", expresion_sin_negacion)
+    if re.sub(r"\w+\+|\w+", "", temp) == "":
         return FuncionLogica.SOP
 
     return FuncionLogica.NA
+
+
+def extraer_fila_de_tabla(tabla_de_verdad: list, columna_de_salidas: int, y: int) -> list:
+    extraccion = list()
+
+    for x in range(1, columna_de_salidas):
+        extraccion.append(tabla_de_verdad[x][y])
+
+    return extraccion
+
+
+def obtener_combinaciones_de_tabla(tabla_de_verdad: list, salida: int) -> list:
+    if tabla_de_verdad[-1][0] == "Salida":
+        columna_de_salidas = len(tabla_de_verdad) - 1
+    else:
+        raise ValueError("La tabla no es válida")
+
+    combinaciones = list()
+
+    salida = str(salida)
+
+    y = 0
+    while y < len(tabla_de_verdad[columna_de_salidas]):
+        if str(tabla_de_verdad[columna_de_salidas][y]) == salida:
+            combinaciones.append(extraer_fila_de_tabla(tabla_de_verdad, columna_de_salidas, y))
+
+        y += 1
+
+    return combinaciones
+
+
+def construir_fc_pos(variables: list, combinaciones0: list) -> str:
+    # Si el valor de la variable es 0, se deja tal cual
+    # Si el valor de la variable es 1, se complementa
+
+    if not combinaciones0:
+        return ""
+
+    fc_pos = ""
+
+    y = 0
+    while y < len(combinaciones0):
+        fc_pos += "("
+        for variable, valor in zip(variables, combinaciones0[y]):
+            if valor == "0":
+                fc_pos += variable
+            else:
+                fc_pos += "^" + variable
+
+            fc_pos += "+"
+
+        fc_pos = fc_pos[:-1] + ")"
+
+        y += 1
+
+    return fc_pos
+
+
+def construir_fc_sop(variables: list, combinaciones1: list) -> str:
+    # Si el valor de la variable es 0, se complementa
+    # Si el valor de la variable es 1, se deja tal cual
+
+    if not combinaciones1:
+        return ""
+
+    fc_sop = ""
+
+    y = 0
+    while y < len(combinaciones1):
+        for variable, valor in zip(variables, combinaciones1[y]):
+            if valor == "0":
+                fc_sop += "^" + variable
+            else:
+                fc_sop += variable
+
+        fc_sop += "+"
+        y += 1
+
+    return fc_sop[:-1]
+
+
+def deducir_expresion(tabla_de_verdad: list) -> list:
+    # La tabla debe ser una lista de listas
+    if not tabla_de_verdad:
+        return ["", ""]
+    if not isinstance(tabla_de_verdad[0], list):
+        return ["", ""]
+
+    variables = extraer_fila_de_tabla(tabla_de_verdad, len(tabla_de_verdad) - 1, 0)
+
+    funciones = list()
+
+    # POS canónica - maxitérminos (M) [Salida = 0]
+    funciones.append(construir_fc_pos(variables, obtener_combinaciones_de_tabla(tabla_de_verdad, 0)))
+
+    # SOP canónica - minitérminos (m) [Salida = 1]
+    funciones.append(construir_fc_sop(variables, obtener_combinaciones_de_tabla(tabla_de_verdad, 1)))
+
+    return funciones

@@ -1,10 +1,12 @@
 import herramientas.utilidades as utilidades
 import herramientas.logica as logica
 import herramientas.recuadro as recuadro
+from pathlib import Path
 from enum import Enum
 
 
 COMPUERTAS = ["NOT", "AND", "OR", "NAND", "NOR"]
+CIRCUITOS_GUARDADOS = Path("circuitos")
 
 
 class Compuerta(Enum):
@@ -55,25 +57,71 @@ class Circuito:
         elif tipo == logica.FuncionLogica.POS_C:
             self.fc_pos = expresion
 
+    def a_dict(self) -> dict:
+        return {
+            "NOMBRE": self.nombre,
+            "ENTRADAS": self.entradas,
+            "CANTIDAD_DE_ENTRADAS": self.cantidad_de_entradas,
+            "TABLA_DE_VERDAD": self.tabla_de_verdad,
+            "F": self.f,
+            "F_SOP": self.f_sop,
+            "FC_SOP": self.fc_sop,
+            "F_POS": self.f_pos,
+            "FC_POS": self.fc_pos
+        }
+
     def a_cadena(self) -> str:
         datos = f"Circuito \"{self.nombre}\"\n"
         datos += "Entradas\t" + str(self.entradas).replace(",", "").replace("'", "") + "\n"
         datos += f"# Entradas\t{self.cantidad_de_entradas}\n"
         datos += f"\n  Tabla de verdad\n{recuadro.crear_tabla(self.tabla_de_verdad)}\n"
-        datos += f"Función\t\t\t{self.f}\n"
-        datos += f"Función SOP\t\t{self.f_sop}\n"
-        datos += f"Función canónica SOP\t{self.fc_sop}\n"
-        datos += f"Función POS\t\t{self.f_pos}\n"
-        datos += f"Función canónica POS\t{self.fc_pos}\n"
+        if self.f:
+            datos += f"Función\t\t\t{self.f}\n"
+
+        if self.f_sop:
+            datos += f"Función SOP\t\t{self.f_sop}\n"
+
+        if self.fc_sop:
+            datos += f"Función canónica SOP\t{self.fc_sop}\n"
+
+        if self.f_pos:
+            datos += f"Función POS\t\t{self.f_pos}\n"
+
+        if self.fc_pos:
+            datos += f"Función canónica POS\t{self.fc_pos}\n"
 
         return datos
+
+
+def el_circuito_existe(nombre: str) -> bool:
+    global CIRCUITOS_GUARDADOS
+    return CIRCUITOS_GUARDADOS.joinpath(nombre + ".json").exists()
+
+
+def guardar_circuito(circuito: Circuito) -> bool:
+    global CIRCUITOS_GUARDADOS
+
+    if not CIRCUITOS_GUARDADOS.exists():
+        CIRCUITOS_GUARDADOS.mkdir()
+
+    archivo_nuevo = CIRCUITOS_GUARDADOS.joinpath(circuito.nombre + ".json")
+
+    return utilidades.escribir_archivo(archivo_nuevo, str(circuito.a_dict()))
 
 
 def crear_circuito(variables=None, funcion_booleana=None, tabla_de_verdad=None) -> Circuito:
     utilidades.limpiar_pantalla()
 
     print("Ingresa el nombre para el circuito")
-    nuevo_circuito = Circuito(input("> "))
+    nombre = input("> ")
+    if el_circuito_existe(nombre):
+        print(f"El circuito \"{nombre}\" ya existe, ¿sobreescribir datos?")
+        print("1. Si")
+        print("2. No")
+        if utilidades.seleccionar_opcion(["1", "2"], [False, True]):
+            raise KeyboardInterrupt()
+
+    nuevo_circuito = Circuito(nombre)
 
     if variables is None:
         utilidades.limpiar_pantalla()
@@ -107,14 +155,20 @@ def crear_circuito(variables=None, funcion_booleana=None, tabla_de_verdad=None) 
                 nuevo_circuito.tabla_de_verdad = \
                     logica.deducir_tabla_de_verdad(nuevo_circuito.entradas, nuevo_circuito.get_f())
             else:
-                nuevo_circuito.tabla_de_verdad = logica.crear_tabla_de_verdad(variables)
+                nuevo_circuito.tabla_de_verdad = logica.crear_tabla_de_verdad(nuevo_circuito.entradas)
 
     utilidades.limpiar_pantalla()
-    if nuevo_circuito.tabla_de_verdad and not nuevo_circuito.f_definida:
-        print("¿Deducir expresiones de la tabla de verdad?")
+    if nuevo_circuito.tabla_de_verdad:
+        print("¿Deducir expresiones canónicas de la tabla de verdad?")
         print("1. Si")
         print("2. No")
         if utilidades.seleccionar_opcion(["1", "2"], [True, False]):
-            pass
+            fc_pos, fc_sop = logica.deducir_expresion(nuevo_circuito.tabla_de_verdad)
+            nuevo_circuito.set_f(logica.FuncionLogica.POS_C, fc_pos)
+            nuevo_circuito.set_f(logica.FuncionLogica.SOP_C, fc_sop)
+
+    guardar_circuito(nuevo_circuito)
+
+    utilidades.limpiar_pantalla()
 
     return nuevo_circuito

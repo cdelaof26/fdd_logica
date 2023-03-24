@@ -35,12 +35,21 @@ Ejecútalo
 # Si te encuentras en macOS ó Linux
 $ python3 main.py
 
-# Si e encuentras en Windows
+# Si te encuentras en Windows
 $ python main.py
 </pre>
 
 
 ### Changelog
+
+### v0.0.4
+- Agregado `Deducir expresión de tabla de verdad`
+- Agregado `Expandir expresión`
+  - Por ahora solo procesa expresiones SOP y POS, el soporte
+    para expresiones de otro tipo se agregará después
+- Los circuitos creados se guardarán automáticamente
+- Cambio en la detección de funciones booleanas SOP
+
 
 ### v0.0.3
 
