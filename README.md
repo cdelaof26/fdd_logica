@@ -42,6 +42,15 @@ $ python main.py
 
 ### Changelog
 
+### v0.0.5
+- Agregado `Reducir expresión` por medio de algebra de Boole
+  - El soporte es limitado y exclusivo para expresiones de tipo SOP,
+    es posible que no se agregue soporte para otro tipo de funciones
+    en un futuro debido a la complejidad de las reducciones.
+  - **Los resultados arrojados por esta función muchas veces son 
+    reducibles**
+
+
 ### v0.0.4
 - Agregado `Deducir expresión de tabla de verdad`
 - Agregado `Expandir expresión`
@@ -52,17 +61,14 @@ $ python main.py
 
 
 ### v0.0.3
-
 - Mejora en la experiencia de uso
 - Agregado `Crear circuito`
 - Agregado `Clasificar expresión`
 
 
 ### v0.0.2
-
 - Mejora en la experiencia de uso
 
 
 ### v0.0.1
-
 - Proyecto inicial

@@ -16,6 +16,7 @@ def obtener_nombre_del_sistema():
         NOMBRE_DEL_SISTEMA = uname()[0]
     except ImportError:
         NOMBRE_DEL_SISTEMA = "nt"
+        call("color", shell=True)
 
 
 def leer_archivo(ruta: Path) -> str:
@@ -66,16 +67,11 @@ def obtener_numero_natural(instruccion: str) -> int:
     print(instruccion)
     numero = input("> ")
 
-    if re.sub(r"\d", "", numero):  # La cadena no es vacía
+    if re.sub(r"\d", "", numero) or not numero:  # La cadena no es vacía
         print("   Los datos ingresados no son válidos")
         return -1
 
-    numero = int(numero)
-    if numero < 1:  # Excluimos el cero
-        print("   El dato no esta en el rango permitido: [0, inf]")
-        return -1
-
-    return numero
+    return int(numero)
 
 
 def obtener_estado_logico(instruccion: str) -> str:
@@ -126,12 +122,16 @@ def obtener_lista(opciones=None, permitir_elementos_compuestos=True) -> list:
             elemento = input("> ").upper()
 
             if not elemento:
-                break
+                if not elementos:
+                    print("\n    Se requiere de al menos un elemento!")
+                    input("  Presiona enter para continuar")
+                else:
+                    break
 
             if not permitir_elementos_compuestos and len(elemento) > 1:
                 print("\n    Los elementos ingresados solo pueden contener un carácter")
                 input("  Presiona enter para continuar")
-            else:
+            elif elemento:
                 elementos.append(elemento)
 
         limpiar_pantalla()
@@ -149,6 +149,10 @@ def cadena_contiene_lista_n_veces(cadena: str, lista: list, veces: int) -> bool:
 
 def escribir_como_funcion(variables: list, expresion: str):
     return f"\tF({', '.join(variables)}) = {expresion}"
+
+
+def imprimir_equivalencia(expresion: str):
+    print("=", expresion.replace("+", " + "))
 
 
 def filtrar_duplicados_en(lista: list) -> list:

@@ -1,6 +1,6 @@
-import herramientas.utilidades as utilidades
-import herramientas.logica as logica
-import herramientas.recuadro as recuadro
+from herramientas import utilidades
+from herramientas import logica
+from herramientas import recuadro
 from pathlib import Path
 from enum import Enum
 
@@ -74,7 +74,9 @@ class Circuito:
         datos = f"Circuito \"{self.nombre}\"\n"
         datos += "Entradas\t" + str(self.entradas).replace(",", "").replace("'", "") + "\n"
         datos += f"# Entradas\t{self.cantidad_de_entradas}\n"
-        datos += f"\n  Tabla de verdad\n{recuadro.crear_tabla(self.tabla_de_verdad)}\n"
+        if self.tabla_de_verdad:
+            datos += f"\n  Tabla de verdad\n{recuadro.crear_tabla(self.tabla_de_verdad)}\n"
+
         if self.f:
             datos += f"Función\t\t\t{self.f}\n"
 
@@ -114,6 +116,9 @@ def crear_circuito(variables=None, funcion_booleana=None, tabla_de_verdad=None) 
 
     print("Ingresa el nombre para el circuito")
     nombre = input("> ")
+    if not nombre:
+        raise KeyboardInterrupt()
+
     if el_circuito_existe(nombre):
         print(f"El circuito \"{nombre}\" ya existe, ¿sobreescribir datos?")
         print("1. Si")

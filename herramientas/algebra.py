@@ -1,7 +1,9 @@
-import herramientas.utilidades as utilidades
-import herramientas.logica as logica
+from herramientas import utilidades
+from herramientas import logica
+from herramientas import algebra_sop
 
 # Utilidades para la operación "algebraica" de expresiones
+
 
 """
 	# Reglas básicas
@@ -44,7 +46,7 @@ def expandir_termino_sop(termino: str, variables: list) -> str:
 			continue
 
 		print(f"\nExpandiendo \"{termino}\"")
-		print(f"->  {termino}({variable}+^{variable})")
+		print(f"-> {termino}({variable}+^{variable})")
 		print(f" = {termino}{variable}+{termino}^{variable}")
 
 		return expandir_termino_sop(
@@ -68,7 +70,18 @@ def ordenar_minitermino(termino: str, variables: list) -> str:
 		if variable in termino:
 			termino_ordenado += f"{variable}"
 
+	if not termino_ordenado:
+		return termino
+
 	return termino_ordenado
+
+
+def ordenar_miniterminos(variables: list, expresion: str) -> str:
+	terminos = list()
+	for termino in expresion.split("+"):
+		terminos.append(ordenar_minitermino(termino, variables))
+
+	return "+".join(utilidades.filtrar_duplicados_en(terminos))
 
 
 def expandir_f_sop(variables: list, expresion: str) -> str:
@@ -81,14 +94,10 @@ def expandir_f_sop(variables: list, expresion: str) -> str:
 		terminos[terminos.index(termino)] = termino_expandido
 		print()
 
-	# Quizá requiera buscar otra solución para quitar duplicados...
 	expresion = "+".join(terminos)
 
-	terminos = list()
-	for termino in expresion.split("+"):
-		terminos.append(ordenar_minitermino(termino, variables))
-
-	return "+".join(utilidades.filtrar_duplicados_en(terminos))
+	# Quizá requiera buscar otra solución para quitar duplicados...
+	return ordenar_miniterminos(variables, expresion)
 
 
 def obtener_t_no_c_de_pos(variables: list, expresion: str) -> tuple:
@@ -108,8 +117,8 @@ def expandir_termino_pos(termino: str, variables: list) -> str:
 	#   (A+B)(A+C)=A+BC
 	# Donde
 	# 		A es término
-	# 		B la variable faltante
-	# 		C la variable faltante complementada
+	# 		B es la variable faltante
+	# 		C es la variable faltante complementada
 
 	for variable in variables:
 		if variable in termino:
@@ -143,6 +152,14 @@ def ordenar_maxitermino(termino: str, variables: list) -> str:
 	return termino_ordenado[:-1]
 
 
+def ordenar_maxiterminos(variables: list, expresion: str) -> str:
+	terminos = list()
+	for termino in expresion.split(")("):
+		terminos.append(ordenar_maxitermino(termino, variables))
+
+	return "(" + ")(".join(utilidades.filtrar_duplicados_en(terminos)) + ")"
+
+
 def expandir_f_pos(variables: list, expresion: str) -> str:
 	# Expande una expresión POS a POS canónica
 
@@ -155,11 +172,7 @@ def expandir_f_pos(variables: list, expresion: str) -> str:
 
 	expresion = ")(".join(terminos)
 
-	terminos = list()
-	for termino in expresion.split(")("):
-		terminos.append(ordenar_maxitermino(termino, variables))
-
-	return "(" + ")(".join(utilidades.filtrar_duplicados_en(terminos)) + ")"
+	return ordenar_maxiterminos(variables, expresion)
 
 
 def expandir_funcion() -> str:
@@ -183,3 +196,54 @@ def expandir_funcion() -> str:
 		return utilidades.escribir_como_funcion(variables, expandir_f_sop(variables, expresion))
 
 	return utilidades.escribir_como_funcion(variables, expandir_f_pos(variables, expresion))
+
+
+# TODO: simplificar expresiones cualesquiera
+r"""
+def simplificar_or(variable: str, expresion: str) -> str:
+	# A+A+A+A  -> A
+	# A+A+A+^A -> A+^A
+
+	# Cambiamos cualquier variable negada por TMP
+	# Esto con el fin de facilitar la detección de or juntos
+	expresion = re.sub(r"\^" + variable, "TMP", expresion)
+
+	expresion = re.sub(f"({variable}[+])+", variable + "+", expresion)
+	expresion = re.sub("(TMP[+])+", "TMP+", expresion)
+
+	return re.sub("TMP", "^" + variable, expresion)
+
+
+def simplificar_and(variable: str, expresion: str) -> str:
+	expresion = re.sub(variable + "{2,}", variable, expresion)
+
+	# También se hace simplificación de términos negados
+	res = re.sub(r"[\^" + variable + "]{4,}", "^" + variable, expresion)
+
+	return res
+
+
+def simplificar_or_y_and(variables: list, expresion: str) -> str:
+	# "Aplicar ley de idempotencia"
+	for variable in variables:
+		expresion = simplificar_and(variable, expresion)
+		expresion = simplificar_or(variable, expresion)
+
+	return expresion"""
+
+
+def reducir_expresion() -> list:
+	utilidades.limpiar_pantalla()
+
+	variables, expresion = logica.obtener_funcion_booleana()
+	tipo = logica.clasificar_expresion(variables, expresion)
+
+	utilidades.limpiar_pantalla()
+
+	if tipo == logica.FuncionLogica.NA:
+		return [False, "Aún no esta implementada la funcionalidad para reducir funciones cualesquiera"]
+
+	if tipo == logica.FuncionLogica.SOP_C or tipo == logica.FuncionLogica.SOP:
+		return [True, algebra_sop.reducir_f_sop(variables, expresion, True)]
+	elif tipo == logica.FuncionLogica.POS_C or tipo == logica.FuncionLogica.POS:
+		return [False, "Aún no esta implementada la funcionalidad para reducir funciones POS"]

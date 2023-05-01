@@ -1,4 +1,4 @@
-import herramientas.utilidades as utilidades
+from herramientas import utilidades
 from enum import Enum
 import re
 
@@ -41,13 +41,9 @@ def combinar(cantidad_de_entradas: int) -> list:
         indentado += "    "
         variables.append(f"v{i}")
 
-    script += "combinaciones.append(" + variables[0]
-    i = 1
-    while i < len(variables):
-        script += f" + {variables[i]}"
-        i += 1
+    script += "combinaciones.append(" + " + ".join(variables) + ")"
 
-    exec(script + ")")
+    exec(script)
 
     return combinaciones
 
@@ -61,7 +57,7 @@ def capturar_valores_de_salida(combinaciones: list) -> list:
     return valores_de_salida
 
 
-def estructurar_tabla(cantidad_de_variables: int, combinaciones: list, valores_de_salida: list, variables=None):
+def estructurar_tabla(cantidad_de_variables: int, combinaciones: list, valores_de_salida: list, variables=None) -> list:
     tabla = list()
     while len(tabla) < cantidad_de_variables:
         tabla.append(list())
@@ -116,7 +112,7 @@ def crear_tabla_de_verdad(variables=None) -> list:
     return estructurar_tabla(cantidad_de_variables, combinaciones, valores_de_salida, variables)
 
 
-def transcribir_a_python(expresion: str):
+def transcribir_a_python(expresion: str) -> str:
     while multiplicaciones := re.findall(r"\w{2,}", expresion) + re.findall(r"\w\^\w", expresion):
         for multiplicacion in multiplicaciones:
             nueva_expresion = ""
@@ -172,8 +168,15 @@ def es_expresion_valida(variables: list, expresion: str) -> bool:
 
     expresion = re.sub(r"[(\[{]", "", expresion)
     expresion = re.sub(r"[]})]", "", expresion)
+    expresion = re.sub(r" +", "", expresion)
+
     expresion = re.sub(r"[\^+*]", "", expresion)
-    expresion = expresion.replace(" ", "")
+
+    if not expresion:
+        print("  La expresión no contiene variables")
+        return False
+
+    expresion = re.sub(r"[10]", "", expresion)
 
     for variable in variables:
         expresion = expresion.replace(variable, "")
@@ -189,15 +192,17 @@ def obtener_funcion_booleana(variables=None) -> tuple:
     if variables is None:
         print("Ingresa las variables")
         variables = utilidades.obtener_lista(permitir_elementos_compuestos=False)
+        utilidades.limpiar_pantalla()
 
     if not variables:
         return [], ""
 
-    utilidades.limpiar_pantalla()
-
     print("Ingresa la expresión")
     expresion = input("> ").upper()
     expresion = re.sub(r" +", "", expresion)
+    expresion = re.sub(r"[\[{]", "(", expresion)
+    expresion = re.sub(r"[]}]", ")", expresion)
+    expresion = re.sub(r"[*]", "", expresion)
 
     if not es_expresion_valida(variables, expresion):
         print("La expresión ingresada no es válida")
@@ -206,25 +211,13 @@ def obtener_funcion_booleana(variables=None) -> tuple:
     return variables, expresion
 
 
-def deducir_tabla_de_verdad(variables=None, expresion=None) -> list:
-    utilidades.limpiar_pantalla()
-
-    if variables is None or expresion is None:
-        variables, expresion = obtener_funcion_booleana()
-
-    expresion = re.sub(r"[\[{]", "(", expresion)
-    expresion = re.sub(r"[]}]", ")", expresion)
-
-    cantidad_de_variables = len(variables)
-    combinaciones = combinar(cantidad_de_variables)
-
+def evaluar_expresion(variables: list, expresion: str, combinaciones: list) -> list:
+    py_expresion = transcribir_a_python(expresion)
+    variables_str = "".join(variables)
     valores_de_salida = list()
 
-    expresion = transcribir_a_python(expresion)
-    variables_str = "".join(variables)
-
     for combinacion in combinaciones:
-        expresion_eval = expresion
+        expresion_eval = py_expresion
         for variable, valor in zip(variables_str, combinacion):
             expresion_eval = re.sub(variable + " ", valor + " ", expresion_eval)
             expresion_eval = re.sub(variable + r"\)", valor + ")", expresion_eval)
@@ -242,21 +235,43 @@ def deducir_tabla_de_verdad(variables=None, expresion=None) -> list:
         else:
             valores_de_salida[-1] = 0
 
-    utilidades.limpiar_pantalla()
+    return valores_de_salida
+
+
+def deducir_tabla_de_verdad(variables=None, expresion=None) -> list:
+    if variables is None or expresion is None:
+        utilidades.limpiar_pantalla()
+        variables, expresion = obtener_funcion_booleana()
+        utilidades.limpiar_pantalla()
+
+    if not variables or not expresion:
+        return list()
+
+    cantidad_de_variables = len(variables)
+    combinaciones = combinar(cantidad_de_variables)
+
+    valores_de_salida = evaluar_expresion(variables, expresion, combinaciones)
 
     return estructurar_tabla(cantidad_de_variables, combinaciones, valores_de_salida, variables)
 
 
 def clasificar_expresion(variables: list, expresion: str) -> FuncionLogica:
+    if not expresion or not variables:
+        raise KeyboardInterrupt()
+
     if "^(" in expresion:
-        # Se considera que nunca se ingresará ^(var)
-        # Quizá se corrija después...
+        # Se considera que nunca se ingresará ^(var), dado que ^var es más fácil de ingresar.
+        # Quizá se busque una forma de detección especifica después...
         return FuncionLogica.NA
 
     expresion_sin_negacion = expresion.replace("^", "")
 
-    if "+" not in expresion_sin_negacion:
-        return FuncionLogica.NA
+    # Se anexa el caso donde no hay paréntesis ni '+' o '*'
+    # Por ahora se considerarán como SOP: "^var", por ejemplo
+    if "+" not in expresion_sin_negacion and "*" not in expresion_sin_negacion and \
+            expresion_sin_negacion.count("(") == 0 and expresion_sin_negacion.count(")") == 0 and \
+            expresion_sin_negacion:
+        return FuncionLogica.SOP
 
     # Procesamiento para POS
     longitud_de_expresion = len(variables) * 2 - 1
@@ -387,10 +402,31 @@ def deducir_expresion(tabla_de_verdad: list) -> list:
 
     funciones = list()
 
-    # POS canónica - maxitérminos (M) [Salida = 0]
+    # POS canónica - maxitérminos (M) ; F.N.C [Salida = 0]
     funciones.append(construir_fc_pos(variables, obtener_combinaciones_de_tabla(tabla_de_verdad, 0)))
 
-    # SOP canónica - minitérminos (m) [Salida = 1]
+    # SOP canónica - minitérminos (m) ; F.N.D [Salida = 1]
     funciones.append(construir_fc_sop(variables, obtener_combinaciones_de_tabla(tabla_de_verdad, 1)))
 
     return funciones
+
+
+def comparar_expresiones(variables=None, expresion1=None, expresion2=None) -> tuple:
+    if variables is None or expresion1 is None or expresion2 is None:
+        utilidades.limpiar_pantalla()
+        print("Ingresa la primera expresión")
+        variables, expresion1 = obtener_funcion_booleana()
+
+        if not expresion1:
+            raise KeyboardInterrupt()
+
+        utilidades.limpiar_pantalla()
+
+        print("Ingresa la segunda expresión")
+        _, expresion2 = obtener_funcion_booleana(variables)
+        if not expresion2:
+            raise KeyboardInterrupt()
+
+    tabla1 = deducir_tabla_de_verdad(variables, expresion1)
+
+    return tabla1, tabla1 == deducir_tabla_de_verdad(variables, expresion2)
